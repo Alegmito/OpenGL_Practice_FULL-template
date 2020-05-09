@@ -37,6 +37,9 @@ double lastCursorPosX = 0.0;
 double lastCursorPosY = 0.0;
 double cursorPosX = 0.0;
 double cursorPosY = 0.0;
+vec3 lightColor = vec3(1.0, 1.0, 1.0);
+vec3 lightPos = vec3(4, 4, 4);
+float lightPower = 50.0f;
 
 glm::mat4 ViewMatrix;
 glm::mat4 ProjectionMatrix;
@@ -204,11 +207,15 @@ int main(int argc, char *argv[]) {
     int posAttribLocation = glGetAttribLocation(shaderProgram, "aPos");
     int colorAttribLocation = glGetAttribLocation(shaderProgram, "aColor");
     int textureAttribLocation = glGetAttribLocation(shaderProgram, "aTexture");
+    int normalAttribLocation = glGetAttribLocation(shaderProgram, "aNormal");
     CHECK_GL_ERRORS();
 
     // юниформы шейдера
     int modelViewProjMatrixLocation = glGetUniformLocation(shaderProgram, "uModelViewProjMat");
     int modelTextureLocation = glGetUniformLocation (shaderProgram, "uTexture");
+    int lightColorLocation = glGetUniformLocation(shaderProgram, "uLightColor");
+    int lightPowerLocation = glGetUniformLocation(shaderProgram, "uLightPower");
+//    int lightPositionLocation = glGetUniformLocation(shaderProgram, "uLightPosition");
     CHECK_GL_ERRORS();
 
     //Read obj. file
@@ -226,6 +233,7 @@ int main(int argc, char *argv[]) {
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
     CHECK_GL_ERRORS();
 
+    //Texture Buffer
     GLuint uvbuffer;
     glGenBuffers(1, &uvbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
@@ -238,6 +246,11 @@ int main(int argc, char *argv[]) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned short), &indices[0] , GL_STATIC_DRAW);
 
 
+    // NormalBuffer
+    GLuint normalbuffer;
+    glGenBuffers(1, &normalbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
 
     // отключаем отображение задней части полигонов
     glEnable(GL_CULL_FACE);
@@ -395,22 +408,31 @@ int main(int argc, char *argv[]) {
         glUniform1i(modelTextureLocation, 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureId);
+        glUniform3f(lightColorLocation, lightColor[0], lightColor[1], lightColor[2]);
+        glUniform1f(lightPowerLocation, lightPower);
         CHECK_GL_ERRORS();
 
         // sizeof(Vertex) - размер блока данных о вершине
         // OFFSETOF(Vertex, color) - смещение от начала
-        // Позиции
+
+        // 1st attribute buffer: Position
         glEnableVertexAttribArray(posAttribLocation);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glVertexAttribPointer(posAttribLocation, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
         // Цвет вершин
 //        glEnableVertexAttribArray(colorAttribLocation);
 //        glVertexAttribPointer(colorAttribLocation, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), OFFSETOF(Vertex, color));
-        // Пиксели текстуры
+
+        // 2nd attribute buffer: Texture pixels
         glEnableVertexAttribArray(textureAttribLocation);
         glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
         glVertexAttribPointer(textureAttribLocation, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
         CHECK_GL_ERRORS();
+
+        // 3rd attribute buffer: normals
+        glEnableVertexAttribArray(normalAttribLocation);
+        glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
+        glVertexAttribPointer(normalAttribLocation, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
         // рисуем
         glDrawArrays(GL_TRIANGLES, 0, vertices.size()); // draw points 0-3 from the currently bound VAO with current in-use shader
@@ -433,6 +455,8 @@ int main(int argc, char *argv[]) {
     glDeleteProgram(shaderProgram);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &uvbuffer);
+    glDeleteBuffers(1, &normalbuffer);
+    glDeleteBuffers(1, &elementbuffer);
 
     glfwDestroyWindow(window);
 
