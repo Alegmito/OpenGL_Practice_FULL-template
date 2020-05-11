@@ -38,7 +38,7 @@ double lastCursorPosY = 0.0;
 double cursorPosX = 0.0;
 double cursorPosY = 0.0;
 vec3 lightColor = vec3(1.0, 1.0, 1.0);
-vec3 lightPos = vec3(4, 4, 4);
+
 float lightPower = 50.0f;
 
 glm::mat4 ViewMatrix;
@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
     CHECK_GL_ERRORS();
 
     // Шейдеры
-    GLuint shaderProgram = createShader();
+    GLuint shaderProgram = createShaderWithLight();
     CHECK_GL_ERRORS();
 
     // аттрибуты вершин шейдера
@@ -215,7 +215,9 @@ int main(int argc, char *argv[]) {
     int modelTextureLocation = glGetUniformLocation (shaderProgram, "uTexture");
     int lightColorLocation = glGetUniformLocation(shaderProgram, "uLightColor");
     int lightPowerLocation = glGetUniformLocation(shaderProgram, "uLightPower");
-//    int lightPositionLocation = glGetUniformLocation(shaderProgram, "uLightPosition");
+    int lightPositionLocation = glGetUniformLocation(shaderProgram, "uLightPosition");
+    int VLocation = glGetUniformLocation(shaderProgram, "uV");
+    int MLocation = glGetUniformLocation(shaderProgram, "uM");
     CHECK_GL_ERRORS();
 
     //Read obj. file
@@ -393,7 +395,7 @@ int main(int argc, char *argv[]) {
         mat4 ViewMatrix = getViewMatrix();
 
         mat4 modelViewProjMatrix = ProjecationMatrix* ViewMatrix* model;
-
+        vec3 lightPosition = vec3(4*sin(Scale), 4, 4*cos(Scale));
 //        Pipeline p;
 //        p.Rotate(0.0f, Scale*10, Scale);
 //        p.WorldPos(0.0f, 0.0f, 5.0f);
@@ -403,12 +405,19 @@ int main(int argc, char *argv[]) {
         // выставляем матрицу трансформации в пространство OpenGL
 
         glUniformMatrix4fv(modelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+        // V matrix
+        glUniformMatrix4fv(VLocation, 1, false, glm::value_ptr(ViewMatrix));
+
+        // M matrix
+        glUniformMatrix4fv(MLocation, 1, false, glm::value_ptr(model));
 //        glUniformMatrix4fv(modelViewProjMatrixLocation, 1, false, (const GLfloat*)p.GetTrans());
 
         glUniform1i(modelTextureLocation, 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureId);
         glUniform3f(lightColorLocation, lightColor[0], lightColor[1], lightColor[2]);
+        glUniform3f(lightPositionLocation, lightPosition[0], lightPosition[1], lightPosition[2]);
         glUniform1f(lightPowerLocation, lightPower);
         CHECK_GL_ERRORS();
 
