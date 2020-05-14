@@ -39,7 +39,7 @@ double cursorPosX = 0.0;
 double cursorPosY = 0.0;
 vec3 lightColor = vec3(1.0, 1.0, 1.0);
 
-float lightPower = 50.0f;
+float lightPower = 40.0f;
 
 glm::mat4 ViewMatrix;
 glm::mat4 ProjectionMatrix;
