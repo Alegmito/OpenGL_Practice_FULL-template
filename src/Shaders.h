@@ -7,4 +7,8 @@ GLuint createShaderWithLight();
 
 GLuint createShaderNoLight();
 
+GLuint createShaderFromSources(const char* vertexShader, const char* fragmentShader);
+
+GLuint createShaderNoTexture();
+
 #endif

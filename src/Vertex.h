@@ -1,30 +1,40 @@
 #ifndef VERTEX_H
 #define VERTEX_H
 
-#include <glm.hpp>
+#include <GLFW/glfw3.h>     // Непосредственно сам GLFW
+#include "PngLoader.h"
+#include "Helpers.h"
+#include <glm.hpp>          // библиотека графической математики
 
 using namespace glm;
 
 #define ToRadian(x) ((x) * M_PI / 180.0f)
 #define ToDegree(x) ((x) * 180.0f / M_PI)
 
-struct Vector3f
-{
-    float x;
-    float y;
-    float z;
+//class Circle{
+//public:
+//    Circle();
+//    Circle(float x, float y, float z, float radius);
+//    void Draw();
+//    vec3 circleVertices[200];
+//private:
+//    vec3 center;
+//    float radius;
 
-    Vector3f()
-    {
-    }
 
-    Vector3f(float _x, float _y, float _z)
-    {
-        x = _x;
-        y = _y;
-        z = _z;
-    }
+//};
+
+class Texture{
+public:
+    Texture(char * path);
+    void loadImage (char * path, GLuint* textureId);
+private:
+    GLuint textureNumber;
+    GLuint textureId;
+    static GLuint textureCount;
 };
+
+void DrawCircle(float x, float y, float z, float radius, int numberOfSides, vec3* circleVertices);
 
 class Matrix4f
 {
@@ -71,89 +81,89 @@ struct Vertex{
     Vertex(vec3 inPos, vec3 inColor, vec2 inTexture);
 };
 
-class Pipeline
-{
-public:
-    Pipeline()
-    {
-        m_scale      = Vector3f(1.0f, 1.0f, 1.0f);
-        m_worldPos   = Vector3f(0.0f, 0.0f, 0.0f);
-        m_rotateInfo = Vector3f(0.0f, 0.0f, 0.0f);
-    }
+//class Pipeline
+//{
+//public:
+//    Pipeline()
+//    {
+//        m_scale      = Vector3f(1.0f, 1.0f, 1.0f);
+//        m_worldPos   = Vector3f(0.0f, 0.0f, 0.0f);
+//        m_rotateInfo = Vector3f(0.0f, 0.0f, 0.0f);
+//    }
 
-    void Scale(float ScaleX, float ScaleY, float ScaleZ)
-    {
-        m_scale.x = ScaleX;
-        m_scale.y = ScaleY;
-        m_scale.z = ScaleZ;
-    }
+//    void Scale(float ScaleX, float ScaleY, float ScaleZ)
+//    {
+//        m_scale.x = ScaleX;
+//        m_scale.y = ScaleY;
+//        m_scale.z = ScaleZ;
+//    }
 
-    void WorldPos(float x, float y, float z)
-    {
-        m_worldPos.x = x;
-        m_worldPos.y = y;
-        m_worldPos.z = z;
-    }
+//    void WorldPos(float x, float y, float z)
+//    {
+//        m_worldPos.x = x;
+//        m_worldPos.y = y;
+//        m_worldPos.z = z;
+//    }
 
-    void Rotate(float RotateX, float RotateY, float RotateZ)
-    {
-        m_rotateInfo.x = RotateX;
-        m_rotateInfo.y = RotateY;
-        m_rotateInfo.z = RotateZ;
-    }
+//    void Rotate(float RotateX, float RotateY, float RotateZ)
+//    {
+//        m_rotateInfo.x = RotateX;
+//        m_rotateInfo.y = RotateY;
+//        m_rotateInfo.z = RotateZ;
+//    }
 
-    void SetPerspectiveProj(float FOV, float Width, float Height, float zNear, float zFar)
-       {
-           m_persProj.FOV    = FOV;
-           m_persProj.Width  = Width;
-           m_persProj.Height = Height;
-           m_persProj.zNear  = zNear;
-           m_persProj.zFar   = zFar;
-       }
+//    void SetPerspectiveProj(float FOV, float Width, float Height, float zNear, float zFar)
+//       {
+//           m_persProj.FOV    = FOV;
+//           m_persProj.Width  = Width;
+//           m_persProj.Height = Height;
+//           m_persProj.zNear  = zNear;
+//           m_persProj.zFar   = zFar;
+//       }
 
-       const Matrix4f* GetTrans();
+//       const Matrix4f* GetTrans();
 
-   private:
-       void InitScaleTransform(Matrix4f& m) const;
-       void InitRotateTransform(Matrix4f& m) const;
-       void InitTranslationTransform(Matrix4f& m) const;
-       void InitPerspectiveProj(Matrix4f& m) const;
+//   private:
+//       void InitScaleTransform(Matrix4f& m) const;
+//       void InitRotateTransform(Matrix4f& m) const;
+//       void InitTranslationTransform(Matrix4f& m) const;
+//       void InitPerspectiveProj(Matrix4f& m) const;
 
-       Vector3f m_scale;
-       Vector3f m_worldPos;
-       Vector3f m_rotateInfo;
+//       Vector3f m_scale;
+//       Vector3f m_worldPos;
+//       Vector3f m_rotateInfo;
 
-       struct {
-           float FOV;
-           float Width;
-           float Height;
-           float zNear;
-           float zFar;
-       } m_persProj;
+//       struct {
+//           float FOV;
+//           float Width;
+//           float Height;
+//           float zNear;
+//           float zFar;
+//       } m_persProj;
 
-       Matrix4f m_transformation;
-   };
+//       Matrix4f m_transformation;
+//   };
 
 
-class Camera
-{
-public:
-    Camera();
-    Camera(const vec3 Position, const vec3 Eye, const vec3 Up);
-    bool OnKeyBoard (int Key);
-    const vec3 GetPos() const{
-        return m_pos;
-    }
-    const vec3 GetEye() const{
-        return m_eye;
-    }
-    const vec3 GetUp() const{
-        return m_up;
-    }
+//class Camera
+//{
+//public:
+//    Camera();
+//    Camera(const vec3 Position, const vec3 Eye, const vec3 Up);
+//    bool OnKeyBoard (int Key);
+//    const vec3 GetPos() const{
+//        return m_pos;
+//    }
+//    const vec3 GetEye() const{
+//        return m_eye;
+//    }
+//    const vec3 GetUp() const{
+//        return m_up;
+//    }
 
-private:
-    vec3 m_pos;
-    vec3 m_eye;
-    vec3 m_up;
-};
+//private:
+//    vec3 m_pos;
+//    vec3 m_eye;
+//    vec3 m_up;
+//};
 #endif

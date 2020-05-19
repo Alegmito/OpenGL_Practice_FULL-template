@@ -29,6 +29,9 @@ using namespace glm;
 
 #define MATH_PI 3.14159265
 
+// Parameters for circle
+int numberOfSides = 200;
+
 // Текущие переменные для модели
 bool leftButtonPressed = false;
 bool rightPressed = false;
@@ -52,9 +55,9 @@ glm::mat4 getProjectionMatrix(){
 }
 
 // Initial position : on +Z
-glm::vec3 position = glm::vec3( 0, 0, 5 );
+glm::vec3 position = glm::vec3( 0, 5, 0 );
 // Initial horizontal angle : toward -Z
-float horizontalAngle = 3.14f;
+float horizontalAngle = MATH_PI;
 // Initial vertical angle : none
 float verticalAngle = 0.0f;
 // Initial Field of View
@@ -98,6 +101,9 @@ void glfwMouseButtonCallback(GLFWwindow* window, int button, int state, int mod)
     }
 }
 
+
+
+
 void glfwCursorCallback(GLFWwindow* window, double x, double y) {
     // при нажатой левой кнопки - вращаем по X и Y
     if(leftButtonPressed){
@@ -115,6 +121,20 @@ void glfwCursorCallback(GLFWwindow* window, double x, double y) {
 }
 
 void glfwScrollCallback(GLFWwindow* window, double scrollByX, double scrollByY) {
+}
+
+void loadImage (char * path, GLuint* textureId){
+    ImageData info = loadPngImage(path);
+    if(info.loaded){
+        glGenTextures(1, *&textureId);
+        glBindTexture(GL_TEXTURE_2D, *textureId);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,              // формат внутри OpenGL
+                     info.width, info.height, 0,            // ширинна, высота, границы
+                     info.withAlpha ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE, info.data); // формат входных данных
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        CHECK_GL_ERRORS();
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -201,8 +221,10 @@ int main(int argc, char *argv[]) {
 
     // Шейдеры
     GLuint shaderProgram = createShaderWithLight();
+    GLuint shaderLine = createShaderNoTexture();
     CHECK_GL_ERRORS();
 
+    // Getting access to shaderProgram
     // аттрибуты вершин шейдера
     int posAttribLocation = glGetAttribLocation(shaderProgram, "aPos");
     int colorAttribLocation = glGetAttribLocation(shaderProgram, "aColor");
@@ -212,12 +234,14 @@ int main(int argc, char *argv[]) {
 
     // юниформы шейдера
     int modelViewProjMatrixLocation = glGetUniformLocation(shaderProgram, "uModelViewProjMat");
-    int modelTextureLocation = glGetUniformLocation (shaderProgram, "uTexture");
+    int modelTextureLocation0 = glGetUniformLocation (shaderProgram, "Texture0");
+    int modelTextureLocation1 = glGetUniformLocation (shaderProgram, "Texture1");
     int lightColorLocation = glGetUniformLocation(shaderProgram, "uLightColor");
     int lightPowerLocation = glGetUniformLocation(shaderProgram, "uLightPower");
     int lightPositionLocation = glGetUniformLocation(shaderProgram, "uLightPosition");
     int VLocation = glGetUniformLocation(shaderProgram, "uV");
     int MLocation = glGetUniformLocation(shaderProgram, "uM");
+    int textureOffsetLocation = glGetUniformLocation(shaderProgram, "uTextureOffset");
     CHECK_GL_ERRORS();
 
     //Read obj. file
@@ -225,6 +249,8 @@ int main(int argc, char *argv[]) {
     vector <glm::vec3> vertices;
     vector <glm::vec2> uvs;
     std::vector <glm::vec3> normals;
+
+
 
     bool res = loadAssImp ("res/sphere.obj", indices, vertices, uvs, normals);
 
@@ -254,6 +280,26 @@ int main(int argc, char *argv[]) {
     glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
     glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
 
+    // Get access to shaderLine
+    // CirceDrawing
+    glm::vec3 orbit[numberOfSides];
+    DrawCircle(0, 0, 0, 5, numberOfSides, orbit);
+    // Attribute
+    int linePosAttribLocation = glGetAttribLocation(shaderLine, "aPos");
+
+    // Shader's uniforms
+    int lineModelViewProjMatrixLocation = glGetUniformLocation(shaderLine, "uModelViewProjMat");
+    int lineColorLocation = glGetUniformLocation(shaderLine, "uColor");
+    CHECK_GL_ERRORS();
+
+    // VBO, данные о вершинах
+    GLuint VBOLines = 0;
+    glGenBuffers(1, &VBOLines);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOLines);
+    glBufferData(GL_ARRAY_BUFFER, numberOfSides * sizeof(vec3), &orbit[0], GL_STATIC_DRAW);
+    CHECK_GL_ERRORS();
+
+
     // отключаем отображение задней части полигонов
     glEnable(GL_CULL_FACE);
     // отбрасываться будут задние грани
@@ -270,20 +316,12 @@ int main(int argc, char *argv[]) {
 
     // текущее время
 //    double time = glfwGetTime();
-
+    GLuint textureID0 = 0;
+    GLuint textureID1 = 1;
     // Загрузка текстуры
-    ImageData info = loadPngImage("res/sphere.png");
-    uint textureId = 0;
-    if(info.loaded){
-        glGenTextures(1, &textureId);
-        glBindTexture(GL_TEXTURE_2D, textureId);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,              // формат внутри OpenGL
-                     info.width, info.height, 0,            // ширинна, высота, границы
-                     info.withAlpha ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE, info.data); // формат входных данных
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        CHECK_GL_ERRORS();
-    }
+    loadImage("res/venus_atmosphere.png", &textureID0);
+
+    loadImage("res/moon.png",&textureID1);
     while (!glfwWindowShouldClose(window)){
         // приращение времени
 //        double newTime = glfwGetTime();
@@ -378,6 +416,8 @@ int main(int argc, char *argv[]) {
 
         // матрица модель-вид-проекция
         mat4 model = mat4(1.0);
+        model = rotate(model, sinf(1/2), vec3(0, 0, 1));
+        model = translate(model, vec3(5*sinf(currentTime/100), 0, 5*cosf(currentTime/100)));
 //        computeMatricesFromInputs();
 //        mat4 proj = getProjectionMatrix();
 //        mat4 view = getViewMatrix();
@@ -395,7 +435,7 @@ int main(int argc, char *argv[]) {
         mat4 ViewMatrix = getViewMatrix();
 
         mat4 modelViewProjMatrix = ProjecationMatrix* ViewMatrix* model;
-        vec3 lightPosition = vec3(4*sin(Scale), 4, 4*cos(Scale));
+        vec3 lightPosition = vec3(0, 0, 0);
 //        Pipeline p;
 //        p.Rotate(0.0f, Scale*10, Scale);
 //        p.WorldPos(0.0f, 0.0f, 5.0f);
@@ -412,13 +452,20 @@ int main(int argc, char *argv[]) {
         // M matrix
         glUniformMatrix4fv(MLocation, 1, false, glm::value_ptr(model));
 //        glUniformMatrix4fv(modelViewProjMatrixLocation, 1, false, (const GLfloat*)p.GetTrans());
-
-        glUniform1i(modelTextureLocation, 0);
+        // 1st texture
+        glUniform1i(modelTextureLocation0, 0);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, textureId);
+        glBindTexture(GL_TEXTURE_2D, textureID0);
+
+        // 2nd texture
+        glUniform1i(modelTextureLocation1, 1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, textureID1);
+
         glUniform3f(lightColorLocation, lightColor[0], lightColor[1], lightColor[2]);
         glUniform3f(lightPositionLocation, lightPosition[0], lightPosition[1], lightPosition[2]);
         glUniform1f(lightPowerLocation, lightPower);
+        glUniform1f(textureOffsetLocation, currentTime*0.01);
         CHECK_GL_ERRORS();
 
         // sizeof(Vertex) - размер блока данных о вершине
@@ -446,6 +493,23 @@ int main(int argc, char *argv[]) {
         // рисуем
         glDrawArrays(GL_TRIANGLES, 0, vertices.size()); // draw points 0-3 from the currently bound VAO with current in-use shader
 
+        //shader for circle
+        glUseProgram (shaderLine);
+        CHECK_GL_ERRORS();
+
+        model = mat4(1.0);
+        modelViewProjMatrix = ProjecationMatrix* ViewMatrix* model;
+        glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+        glUniform3f(lineColorLocation, 1.0f, 1.0f, 1.0f);
+
+        // position for circle vertices
+        glEnableVertexAttribArray(linePosAttribLocation);
+        glBindBuffer(GL_ARRAY_BUFFER, VBOLines);
+        glVertexAttribPointer(linePosAttribLocation, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        CHECK_GL_ERRORS();
+
+         glDrawArrays(GL_LINE_LOOP, 0, numberOfSides);
+         CHECK_GL_ERRORS();
 //        model = translate(model, vec3(1.0f, -1.0f, 0.0f));
 
 //        modelViewProj = proj * model;
@@ -462,10 +526,12 @@ int main(int argc, char *argv[]) {
            glfwWindowShouldClose(window) == 0 );
 
     glDeleteProgram(shaderProgram);
+    glDeleteProgram(shaderLine);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &uvbuffer);
     glDeleteBuffers(1, &normalbuffer);
     glDeleteBuffers(1, &elementbuffer);
+    glDeleteBuffers(1, &VBOLines);
 
     glfwDestroyWindow(window);
 
