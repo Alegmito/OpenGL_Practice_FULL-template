@@ -11,4 +11,6 @@ GLuint createShaderFromSources(const char* vertexShader, const char* fragmentSha
 
 GLuint createShaderNoTexture();
 
+GLuint createShaderLightOneTexture();
+
 #endif

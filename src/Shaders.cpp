@@ -54,11 +54,9 @@ GLuint createShaderWithLight(){
         uniform vec3 uLightPosition;
         uniform mat4 uV;
         uniform mat4 uM;
-        uniform float uTextureOffset;
         // output will be interpolated for each fragment
         varying vec3 vColor;
-        varying vec2 vTexture1;
-        varying vec2 vTexture2;
+        varying vec2 vTexture;
         varying vec3 vPosWorldspace;
         varying vec3 vNormalCameraspace;
         varying vec3 vEyeDirCameraspace;
@@ -86,22 +84,21 @@ GLuint createShaderWithLight(){
             // цвет и текстурные координаты просто пробрасываем для интерполяции
             vColor = aColor;
 
-            vTexture1 = vec2(aTexture.x+uTextureOffset/5, aTexture.y);
-            vTexture2 = vec2(aTexture.x+uTextureOffset/1, aTexture.y);
+            vTexture = vec2(aTexture.x, aTexture.y);
         }
     );
 
         // Fragment Shader
     const char* fragmentShader = STRINGIFY_SHADER(
         varying vec3 vColor;
-        varying vec2 vTexture1;
-        varying vec2 vTexture2;
+        varying vec2 vTexture;
         varying vec3 vPosWorldspace;
         varying vec3 vNormalCameraspace;
         varying vec3 vEyeDirCameraspace;
         varying vec3 vLightDirCameraspace;
 
         //  uniforms
+        uniform float uTextureOffset;
         uniform sampler2D Texture0;
         uniform sampler2D Texture1;
         uniform vec3 uLightColor;
@@ -112,7 +109,8 @@ GLuint createShaderWithLight(){
         void main () {
 
             // Material properties
-            vec3 MaterialDiffuseColor = mix(texture2D(Texture0, vTexture1), texture2D(Texture1, vTexture2), 0.5).rgb;
+            vec2 vTextureOffset = vec2(fract(vTexture.x + uTextureOffset), vTexture.y);
+            vec3 MaterialDiffuseColor = mix(texture2D(Texture0, vTexture), texture2D(Texture1, vTextureOffset), 0.5).rgb;
             vec3 MaterialAmbientColor = vec3(0.1, 0.1, 0.1) * MaterialDiffuseColor;
 
             // Distance to the light
@@ -148,9 +146,9 @@ GLuint createShaderWithLight(){
                         MaterialAmbientColor +
                         // diffuse
                         MaterialDiffuseColor * uLightColor * uLightPower * cosTheta
-                    / (distance * distance) +
+                    / (0.4 * distance) +
                         //specular
-                        MaterialDiffuseColor * uLightColor * uLightPower * pow(cosAlpha, 10)/ (distance* distance)
+                        MaterialDiffuseColor * uLightColor * uLightPower * pow(cosAlpha, 10)/ (0.4 * distance)
                                 , 1.0);
 //            gl_FragColor = texture2D(uTexture0, vTexture1)+texture2D(uTexture1, vTexture1);
         }
@@ -177,11 +175,9 @@ GLuint createShaderLightOneTexture(){
         uniform vec3 uLightPosition;
         uniform mat4 uV;
         uniform mat4 uM;
-        uniform float uTextureOffset;
         // output will be interpolated for each fragment
         varying vec3 vColor;
-        varying vec2 vTexture1;
-        varying vec2 vTexture2;
+        varying vec2 vTexture;
         varying vec3 vPosWorldspace;
         varying vec3 vNormalCameraspace;
         varying vec3 vEyeDirCameraspace;
@@ -209,24 +205,21 @@ GLuint createShaderLightOneTexture(){
             // цвет и текстурные координаты просто пробрасываем для интерполяции
             vColor = aColor;
 
-            vTexture1 = vec2(aTexture.x+uTextureOffset/5, aTexture.y);
-            vTexture2 = vec2(aTexture.x+uTextureOffset/1, aTexture.y);
+            vTexture = vec2(aTexture.x, aTexture.y);
         }
     );
 
         // Fragment Shader
     const char* fragmentShader = STRINGIFY_SHADER(
         varying vec3 vColor;
-        varying vec2 vTexture1;
-        varying vec2 vTexture2;
+        varying vec2 vTexture;
         varying vec3 vPosWorldspace;
         varying vec3 vNormalCameraspace;
         varying vec3 vEyeDirCameraspace;
         varying vec3 vLightDirCameraspace;
 
         //  uniforms
-        uniform sampler2D Texture0;
-        uniform sampler2D Texture1;
+        uniform sampler2D Texture;
         uniform vec3 uLightColor;
 //        uniform mat4 uMV;
         uniform float uLightPower;
@@ -235,7 +228,7 @@ GLuint createShaderLightOneTexture(){
         void main () {
 
             // Material properties
-            vec3 MaterialDiffuseColor = mix(texture2D(Texture0, vTexture1), texture2D(Texture1, vTexture2), 0.5).rgb;
+            vec3 MaterialDiffuseColor = texture2D(Texture, vTexture).rgb;
             vec3 MaterialAmbientColor = vec3(0.1, 0.1, 0.1) * MaterialDiffuseColor;
 
             // Distance to the light
@@ -271,16 +264,13 @@ GLuint createShaderLightOneTexture(){
                         MaterialAmbientColor +
                         // diffuse
                         MaterialDiffuseColor * uLightColor * uLightPower * cosTheta
-                    / (distance * distance) +
+                    / (0.4 * distance) +
                         //specular
-                        MaterialDiffuseColor * uLightColor * uLightPower * pow(cosAlpha, 10)/ (distance* distance)
+                        MaterialDiffuseColor * uLightColor * uLightPower * pow(cosAlpha, 10)/ (0.4 * distance)
                                 , 1.0);
 //            gl_FragColor = texture2D(uTexture0, vTexture1)+texture2D(uTexture1, vTexture1);
         }
     );
-
-
-
 
     GLuint shader = createShaderFromSources(vertexShader, fragmentShader);
     CHECK_GL_ERRORS();
@@ -295,6 +285,7 @@ GLuint createShaderNoLight(){
             attribute vec3 aPos;
             attribute vec3 aColor;
             attribute vec2 aTexture;
+            attribute vec3 aNormal;
             // uniforms
             uniform mat4 uModelViewProjMat;
             // output

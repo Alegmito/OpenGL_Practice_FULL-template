@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "Vertex.h"
+#include "glm.hpp"
 
 using namespace std;
 

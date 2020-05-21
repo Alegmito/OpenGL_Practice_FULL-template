@@ -1,15 +1,20 @@
 #ifndef VERTEX_H
 #define VERTEX_H
 
-#include <GLFW/glfw3.h>     // Непосредственно сам GLFW
 #include "PngLoader.h"
+#include "ObjLoader.h"
 #include "Helpers.h"
+#include <GL/glew.h>
 #include <glm.hpp>          // библиотека графической математики
+#include <memory>
+
 
 using namespace glm;
+using namespace std;
 
 #define ToRadian(x) ((x) * M_PI / 180.0f)
 #define ToDegree(x) ((x) * 180.0f / M_PI)
+
 
 //class Circle{
 //public:
@@ -24,17 +29,70 @@ using namespace glm;
 
 //};
 
+void bindArrayBuffer(GLint attribLocation, GLint buffer, uint size);
+void bindElementBuffer(GLint buffer);
+
+
+class Mesh{
+public:
+    Mesh(const char * path);
+    void genBuffers();
+    void addBuffers(GLint posAttribLocation, GLint normalAttribLocation, GLint textureAttribLocation);
+    void deleteBuffers();
+    void draw();
+protected:
+    vector<vec3> vertices;
+    vector<unsigned short> indices;
+    vector<vec2> uvs;
+    vector<vec3> normals;
+    GLuint VBO;
+    GLuint IBO;
+    GLuint UVBO;
+    GLuint NBO;
+};
+
+//class SkySphere {
+//public:
+
+//private:
+//    shared_ptr<mesh> planet;
+//    shared_ptr<Circle> orbit;
+
+//};
+
+class Circle{
+public:
+    // make circle
+    Circle(vec3 center, float radius, int numberOfSides);
+
+    void draw();
+
+    void addBuffers(GLint posAttribLocation);
+
+    void genBuffers();
+
+    void deleteBuffers();
+
+private:
+    vector<vec3> vertices;
+    GLuint VBO;
+};
+
+
+
+
 class Texture{
 public:
-    Texture(char * path);
-    void loadImage (char * path, GLuint* textureId);
+    Texture(const char * path, GLuint _textureNumber);
+    void loadImage (const char * path, GLuint * textureId);
+    static void UniformTexure(GLint textureLocation, GLuint tNumber);
+    void genTexture0();
+    void genTexture1();
 private:
     GLuint textureNumber;
     GLuint textureId;
-    static GLuint textureCount;
 };
 
-void DrawCircle(float x, float y, float z, float radius, int numberOfSides, vec3* circleVertices);
 
 class Matrix4f
 {

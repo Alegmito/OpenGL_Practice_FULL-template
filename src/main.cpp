@@ -41,6 +41,7 @@ double lastCursorPosY = 0.0;
 double cursorPosX = 0.0;
 double cursorPosY = 0.0;
 vec3 lightColor = vec3(1.0, 1.0, 1.0);
+ vec3 lightPosition = vec3(0, 0, 0);
 
 float lightPower = 40.0f;
 
@@ -55,7 +56,7 @@ glm::mat4 getProjectionMatrix(){
 }
 
 // Initial position : on +Z
-glm::vec3 position = glm::vec3( 0, 5, 0 );
+glm::vec3 position = glm::vec3( 0, 10, 10 );
 // Initial horizontal angle : toward -Z
 float horizontalAngle = MATH_PI;
 // Initial vertical angle : none
@@ -63,7 +64,7 @@ float verticalAngle = 0.0f;
 // Initial Field of View
 float initialFoV = 45.0f;
 
-float speed = 3.0f; // 3 units / second
+float speed = 20.0f; // 3 units / second
 float mouseSpeed = 0.005f;
 
 
@@ -126,7 +127,7 @@ void glfwScrollCallback(GLFWwindow* window, double scrollByX, double scrollByY) 
 void loadImage (char * path, GLuint* textureId){
     ImageData info = loadPngImage(path);
     if(info.loaded){
-        glGenTextures(1, *&textureId);
+        glGenTextures(1, textureId);
         glBindTexture(GL_TEXTURE_2D, *textureId);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,              // формат внутри OpenGL
                      info.width, info.height, 0,            // ширинна, высота, границы
@@ -221,6 +222,8 @@ int main(int argc, char *argv[]) {
 
     // Шейдеры
     GLuint shaderProgram = createShaderWithLight();
+    GLuint shaderOneTexture = createShaderLightOneTexture();
+    GLuint shaderNoLight = createShaderNoLight();
     GLuint shaderLine = createShaderNoTexture();
     CHECK_GL_ERRORS();
 
@@ -244,59 +247,47 @@ int main(int argc, char *argv[]) {
     int textureOffsetLocation = glGetUniformLocation(shaderProgram, "uTextureOffset");
     CHECK_GL_ERRORS();
 
-    //Read obj. file
-    std::vector<unsigned short> indices;
-    vector <glm::vec3> vertices;
-    vector <glm::vec2> uvs;
-    std::vector <glm::vec3> normals;
-
-
-
-    bool res = loadAssImp ("res/sphere.obj", indices, vertices, uvs, normals);
-
-    // VBO, данные о вершинах
-    GLuint VBO = 0;
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+    // Getting access to ShaderNoLight
+    //attributes
+    int posAttribLocationNoL = glGetAttribLocation(shaderNoLight, "aPos");
+    int colorAttribLocationNoL = glGetAttribLocation(shaderNoLight, "aColor");
+    int textureAttribLocationNoL = glGetAttribLocation(shaderNoLight, "aTexture");
+    int normalAttribLocationNoL = glGetAttribLocation(shaderNoLight, "aNormal");
+    //uniforms
+    int modelViewProjMatrixLocationNoL = glGetUniformLocation(shaderNoLight, "uModelViewProjMat");
+    int modelTextureLocationNoL = glGetUniformLocation (shaderNoLight, "uTexture");
     CHECK_GL_ERRORS();
 
-    //Texture Buffer
-    GLuint uvbuffer;
-    glGenBuffers(1, &uvbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-    glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+    //Getting access to the ShaderOneTexture
+    // аттрибуты вершин шейдера
+    int posAttribLocationOneTexture = glGetAttribLocation(shaderOneTexture, "aPos");
+    int colorAttribLocationOneTexture = glGetAttribLocation(shaderOneTexture, "aColor");
+    int textureAttribLocationOneTexture = glGetAttribLocation(shaderOneTexture, "aTexture");
+    int normalAttribLocationOneTexture = glGetAttribLocation(shaderOneTexture, "aNormal");
+    CHECK_GL_ERRORS();
 
-    //buffer for indices
-    GLuint elementbuffer;
-    glGenBuffers(1, &elementbuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned short), &indices[0] , GL_STATIC_DRAW);
+    // юниформы шейдера
+    int modelViewProjMatrixLocationOneTexture = glGetUniformLocation(shaderOneTexture, "uModelViewProjMat");
+    int modelTextureLocationOneTexture = glGetUniformLocation (shaderOneTexture, "Texture");
+    int lightColorLocationOneTexture = glGetUniformLocation(shaderOneTexture, "uLightColor");
+    int lightPowerLocationOneTexture = glGetUniformLocation(shaderOneTexture, "uLightPower");
+    int lightPositionLocationOneTexture = glGetUniformLocation(shaderOneTexture, "uLightPosition");
+    int VLocationOneTexture = glGetUniformLocation(shaderOneTexture, "uV");
+    int MLocationOneTexture = glGetUniformLocation(shaderOneTexture, "uM");
+    CHECK_GL_ERRORS();
 
-
-    // NormalBuffer
-    GLuint normalbuffer;
-    glGenBuffers(1, &normalbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
-    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
+    //Read obj. file
+    shared_ptr<Mesh> planet = make_shared<Mesh>("res/sphere.obj");
 
     // Get access to shaderLine
     // CirceDrawing
-    glm::vec3 orbit[numberOfSides];
-    DrawCircle(0, 0, 0, 5, numberOfSides, orbit);
+    shared_ptr<Circle> orbit = make_shared<Circle>(vec3(0.0f, 0.0f, 0.0f), 1.0, 300);
     // Attribute
     int linePosAttribLocation = glGetAttribLocation(shaderLine, "aPos");
 
     // Shader's uniforms
     int lineModelViewProjMatrixLocation = glGetUniformLocation(shaderLine, "uModelViewProjMat");
     int lineColorLocation = glGetUniformLocation(shaderLine, "uColor");
-    CHECK_GL_ERRORS();
-
-    // VBO, данные о вершинах
-    GLuint VBOLines = 0;
-    glGenBuffers(1, &VBOLines);
-    glBindBuffer(GL_ARRAY_BUFFER, VBOLines);
-    glBufferData(GL_ARRAY_BUFFER, numberOfSides * sizeof(vec3), &orbit[0], GL_STATIC_DRAW);
     CHECK_GL_ERRORS();
 
 
@@ -314,14 +305,31 @@ int main(int argc, char *argv[]) {
     glDepthFunc(GL_LESS);
     CHECK_GL_ERRORS();
 
-    // текущее время
+    // Textures for all planets
 //    double time = glfwGetTime();
-    GLuint textureID0 = 0;
-    GLuint textureID1 = 1;
-    // Загрузка текстуры
-    loadImage("res/venus_atmosphere.png", &textureID0);
+    //Sun
+    shared_ptr<Texture> sunTexture = make_shared<Texture>("res/sun.png", 0);
+    // Mercury
+    shared_ptr<Texture> mercuryTexture = make_shared<Texture>("res/mercury.png", 0);
+    // Venus
+    shared_ptr<Texture> venusSurfTexture = make_shared<Texture>("res/venus_surface.png", 0);
+    shared_ptr<Texture> venusAtmTexture = make_shared<Texture>("res/venus_atmosphere.png", 1);
+    // Earth
+    shared_ptr<Texture> earthSurfTexture = make_shared<Texture>("res/sphere.png", 0);
+    shared_ptr<Texture> earthAtmTexture = make_shared<Texture>("res/Clouds.png", 1);
+    // Moon
+    shared_ptr<Texture> moonTexture = make_shared<Texture>("res/moon.png", 0);
+    // Mars
+    shared_ptr<Texture> marsTexture = make_shared<Texture>("res/mars.png", 0);
+    // Jupiter
+    shared_ptr<Texture> jupiterTexture = make_shared<Texture>("res/jupiter.png", 0);
+    // Saturn
+    shared_ptr<Texture> saturnTexture = make_shared<Texture>("res/saturn.png", 0);
+    // Urans
+    shared_ptr<Texture> uranusTexture = make_shared<Texture>("res/uranus.png", 0);
+    // Neptune
+    shared_ptr<Texture> neptuneTexture = make_shared<Texture>("res/neptune.png", 0);
 
-    loadImage("res/moon.png",&textureID1);
     while (!glfwWindowShouldClose(window)){
         // приращение времени
 //        double newTime = glfwGetTime();
@@ -398,7 +406,7 @@ int main(int argc, char *argv[]) {
         float FoV = initialFoV;// - 5 * glfwGetMouseWheel(); // Now GLFW 3 requires setting up a callback for this. It's a bit too complicated for this beginner's tutorial, so it's disabled instead.
 
         // Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-        ProjectionMatrix = glm::perspective(glm::radians(FoV), 4.0f / 3.0f, 0.1f, 100.0f);
+        ProjectionMatrix = glm::perspective(glm::radians(FoV), 4.0f / 3.0f, 0.1f, 500.0f);
         // Camera matrix
         ViewMatrix       = glm::lookAt(
                                     position,           // Camera is here
@@ -414,10 +422,22 @@ int main(int argc, char *argv[]) {
         Scale += 0.01f;
 //        glUniform1f(gScaleLocation, sinf(Scale));
 
+
+
+        glUniform3f(lightColorLocation, lightColor[0], lightColor[1], lightColor[2]);
+        glUniform3f(lightPositionLocation, lightPosition[0], lightPosition[1], lightPosition[2]);
+        glUniform1f(lightPowerLocation, lightPower);
+
+        CHECK_GL_ERRORS();
+
         // матрица модель-вид-проекция
         mat4 model = mat4(1.0);
-        model = rotate(model, sinf(1/2), vec3(0, 0, 1));
-        model = translate(model, vec3(5*sinf(currentTime/100), 0, 5*cosf(currentTime/100)));
+
+        // 3 Earth 50
+
+        model = translate(model, vec3(50.0*sinf(currentTime/100), 0, 50.0*cosf(currentTime/100)));
+        model = rotate(model,0.5f , vec3(0, 0, 1));
+        model = rotate(model,(float)currentTime/23.56f , vec3(0, 1, 0));
 //        computeMatricesFromInputs();
 //        mat4 proj = getProjectionMatrix();
 //        mat4 view = getViewMatrix();
@@ -434,14 +454,8 @@ int main(int argc, char *argv[]) {
         mat4 ProjecationMatrix = getProjectionMatrix();
         mat4 ViewMatrix = getViewMatrix();
 
-        mat4 modelViewProjMatrix = ProjecationMatrix* ViewMatrix* model;
-        vec3 lightPosition = vec3(0, 0, 0);
-//        Pipeline p;
-//        p.Rotate(0.0f, Scale*10, Scale);
-//        p.WorldPos(0.0f, 0.0f, 5.0f);
-//        p.SetPerspectiveProj(30.0f, width, height, 1.0f, 100.0f);
-
-
+        mat4 ViewProjMatrix = ProjecationMatrix* ViewMatrix;
+        mat4 modelViewProjMatrix =ViewProjMatrix * model;
         // выставляем матрицу трансформации в пространство OpenGL
 
         glUniformMatrix4fv(modelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
@@ -453,68 +467,286 @@ int main(int argc, char *argv[]) {
         glUniformMatrix4fv(MLocation, 1, false, glm::value_ptr(model));
 //        glUniformMatrix4fv(modelViewProjMatrixLocation, 1, false, (const GLfloat*)p.GetTrans());
         // 1st texture
-        glUniform1i(modelTextureLocation0, 0);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, textureID0);
+        Texture::UniformTexure(modelTextureLocation0, 0);
+        earthSurfTexture->genTexture0();
 
         // 2nd texture
-        glUniform1i(modelTextureLocation1, 1);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, textureID1);
+        Texture::UniformTexure(modelTextureLocation1, 1);
+        earthAtmTexture->genTexture1();
 
-        glUniform3f(lightColorLocation, lightColor[0], lightColor[1], lightColor[2]);
-        glUniform3f(lightPositionLocation, lightPosition[0], lightPosition[1], lightPosition[2]);
-        glUniform1f(lightPowerLocation, lightPower);
-        glUniform1f(textureOffsetLocation, currentTime*0.01);
-        CHECK_GL_ERRORS();
+        glUniform1f(textureOffsetLocation, currentTime/15);
 
-        // sizeof(Vertex) - размер блока данных о вершине
-        // OFFSETOF(Vertex, color) - смещение от начала
-
-        // 1st attribute buffer: Position
-        glEnableVertexAttribArray(posAttribLocation);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glVertexAttribPointer(posAttribLocation, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        // Цвет вершин
-//        glEnableVertexAttribArray(colorAttribLocation);
-//        glVertexAttribPointer(colorAttribLocation, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), OFFSETOF(Vertex, color));
-
-        // 2nd attribute buffer: Texture pixels
-        glEnableVertexAttribArray(textureAttribLocation);
-        glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-        glVertexAttribPointer(textureAttribLocation, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        CHECK_GL_ERRORS();
-
-        // 3rd attribute buffer: normals
-        glEnableVertexAttribArray(normalAttribLocation);
-        glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
-        glVertexAttribPointer(normalAttribLocation, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        planet -> addBuffers(posAttribLocation, normalAttribLocation, textureAttribLocation);
 
         // рисуем
-        glDrawArrays(GL_TRIANGLES, 0, vertices.size()); // draw points 0-3 from the currently bound VAO with current in-use shader
+        planet -> draw(); // draw points 0-3 from the currently bound VAO with current in-use shader
 
-        //shader for circle
+        // 2 Venus 30
+        // trajectory
+        model = translate(mat4(1.0), vec3(30.0f*sinf(currentTime/60+0.5), 0, 30.0f*cosf(currentTime/60+0.5)));
+        //size
+        model = scale(model, vec3(0.95f, 0.95f, 0.95f));
+
+        // наклон и вращение
+        model = rotate(model,(float)currentTime/500.3f , vec3(0, 1, 0));
+        modelViewProjMatrix =ViewProjMatrix * model;
+        glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+        glUniformMatrix4fv(MLocation, 1, false, glm::value_ptr(model));
+        glUniform1f(textureOffsetLocation, currentTime/10);
+
+        venusAtmTexture ->  genTexture0();
+
+        venusSurfTexture -> genTexture1();
+
+        planet -> draw();
+
+
+        // Shader for planets with one texture
+        glUseProgram(shaderOneTexture);
+        CHECK_GL_ERRORS();
+
+        // 5 Jupiter
+        // trajectory
+        model = translate(mat4(1.0), vec3(100*sinf(currentTime/500 + 5), 0, 100*cosf(currentTime/500 + 5)));
+        //size
+        model = scale(model, vec3(5.0, 5.0, 5.0));
+
+        // наклон и вращение
+        model = rotate(model, (float)currentTime/10.0f, vec3(0.0, 1.0, 0.0));
+        modelViewProjMatrix = ViewProjMatrix * model;
+
+        // V matrix
+        glUniformMatrix4fv(VLocationOneTexture, 1, false, glm::value_ptr(ViewMatrix));
+
+        // M matrix
+        glUniformMatrix4fv(MLocationOneTexture, 1, false, glm::value_ptr(model));
+
+        glUniformMatrix4fv(modelViewProjMatrixLocationOneTexture, 1, false, glm::value_ptr(modelViewProjMatrix));
+        CHECK_GL_ERRORS();
+        // texture
+        Texture::UniformTexure(modelTextureLocationOneTexture, 0);
+        jupiterTexture->genTexture0();
+        CHECK_GL_ERRORS();
+        glUniform3f(lightColorLocationOneTexture, lightColor[0], lightColor[1], lightColor[2]);
+        glUniform3f(lightPositionLocationOneTexture, lightPosition[0], lightPosition[1], lightPosition[2]);
+        glUniform1f(lightPowerLocationOneTexture, lightPower);
+        CHECK_GL_ERRORS();
+
+        planet->addBuffers(posAttribLocationOneTexture, normalAttribLocationOneTexture, textureAttribLocationOneTexture);
+
+        planet->draw();
+
+        // 1 Mercury
+        // trajectory
+        model = translate(mat4(1.0), vec3(20.0f*sinf(currentTime/40+4), 0, 20.0f*cosf(currentTime/40+4)));
+        //size
+        model = scale(model, vec3(0.3f, 0.3f, 0.3f));
+        // наклон
+        model = rotate(model,(float)currentTime/300.0f , vec3(0, 1, 0));
+        modelViewProjMatrix =ViewProjMatrix * model;
+        glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+        glUniformMatrix4fv(MLocation, 1, false, glm::value_ptr(model));
+
+         mercuryTexture ->  genTexture0();
+
+        planet -> draw();
+
+        // 3.1 Moon
+        // trajectory
+        model = translate(mat4(1.0), vec3(50.0*sinf(currentTime/100), 0, 50.0*cosf(currentTime/100)));
+        model = translate(model, vec3(3*sinf(currentTime/100), 0, 3*cosf(currentTime/100)));
+        //size
+        model = scale(model, vec3(0.2f, 0.2f, 0.2f));
+
+        // наклон и вращение
+        model = rotate(model,(float)currentTime/100.0f , vec3(0, 1, 0));
+        modelViewProjMatrix =ViewProjMatrix * model;
+        glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+        glUniformMatrix4fv(MLocation, 1, false, glm::value_ptr(model));
+
+        moonTexture ->  genTexture0();
+
+        planet -> draw();
+
+
+        // 4 Mars
+        // trajectory
+        model = translate(mat4(1.0), vec3(70.0f*sinf(currentTime/40+2.1), 0, 70.0f*cosf(currentTime/40+2.1)));
+        //size
+        model = scale(model, vec3(0.5f, 0.5f, 0.5f));
+
+        // наклон
+        model = rotate(model,0.5f , vec3(0, 0, 1));
+        model = rotate(model,(float)currentTime/24.0f , vec3(0, 1, 0));
+        modelViewProjMatrix =ViewProjMatrix * model;
+        glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+        glUniformMatrix4fv(MLocation, 1, false, glm::value_ptr(model));
+
+        marsTexture ->  genTexture0();
+
+        planet -> draw();
+
+        // 6 Saturn 130
+        // trajectory
+        model = translate(mat4(1.0), vec3(130.0f*sinf(currentTime/600+4.9), 0, 130.0f*cosf(currentTime/600+4.9)));
+        //size
+        model = scale(model, vec3(4.5f, 4.5f, 4.5f));
+
+        // наклон и вращение
+        model = rotate(model,0.5f , vec3(0, 0, 1));
+        model = rotate(model,(float)currentTime/9.0f , vec3(0, 1, 0));
+        modelViewProjMatrix =ViewProjMatrix * model;
+        glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+        glUniformMatrix4fv(MLocation, 1, false, glm::value_ptr(model));
+
+        saturnTexture ->  genTexture0();
+
+        planet -> draw();
+
+        // 7 Uranus 150
+        //size
+        model = scale(model, vec3(3.0f, 3.0f, 3.0f));
+        // trajectory
+        model = translate(mat4(1.0), vec3(150.0f*sinf(currentTime/640+3.5), 0, 150.0f*cosf(currentTime/640+3.5)));
+        // наклон
+        model = rotate(model,4.95f , vec3(0, 0, 1));
+        model = rotate(model,(float)currentTime/17.0f , vec3(0, 1, 0));
+        modelViewProjMatrix =ViewProjMatrix * model;
+        glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+        glUniformMatrix4fv(MLocation, 1, false, glm::value_ptr(model));
+
+        saturnTexture ->  genTexture0();
+
+        planet -> draw();
+
+        // 8 Neptune 180
+        // trajectory
+        model = translate(mat4(1.0), vec3(180.0f*sinf(currentTime/670+1.7), 0, 180.0f*cosf(currentTime/670+1.7)));
+        //size
+        model = scale(model, vec3(3.0f, 3.0f, 3.0f));
+        // наклон и вращение
+        model = rotate(model, 0.5f , vec3(0, 0, 1));
+        model = rotate(model,(float)currentTime/16.0f , vec3(0, 1, 0));
+        modelViewProjMatrix =ViewProjMatrix * model;
+        glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+        glUniformMatrix4fv(MLocation, 1, false, glm::value_ptr(model));
+
+        neptuneTexture ->  genTexture0();
+
+        planet -> draw();
+        //Shader for Sun
+
+        glUseProgram(shaderNoLight);
+
+        model = scale(mat4(1.0), vec3(9.0, 9.0, 9.0));
+        model = rotate(model, (float)currentTime/50, vec3(0.0, 1.0, 0.0));
+        modelViewProjMatrix = ViewProjMatrix * model;
+
+        // выставляем матрицу трансформации в пространство OpenGL
+        glUniformMatrix4fv(modelViewProjMatrixLocationNoL, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+        Texture::UniformTexure(modelTextureLocationNoL, 0);
+        sunTexture->genTexture0();
+
+        planet->addBuffers(posAttribLocationNoL, normalAttribLocationNoL, textureAttribLocationNoL);
+
+        planet->draw();
+        CHECK_GL_ERRORS();
+        //shader for Orbits
         glUseProgram (shaderLine);
         CHECK_GL_ERRORS();
 
-        model = mat4(1.0);
-        modelViewProjMatrix = ProjecationMatrix* ViewMatrix* model;
+        // 1 Mercury 20
+        model = scale(mat4(1.0), vec3(20.0f, 20.0f, 20.0f));
+        modelViewProjMatrix =ViewProjMatrix * model;;
         glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
         glUniform3f(lineColorLocation, 1.0f, 1.0f, 1.0f);
 
-        // position for circle vertices
-        glEnableVertexAttribArray(linePosAttribLocation);
-        glBindBuffer(GL_ARRAY_BUFFER, VBOLines);
-        glVertexAttribPointer(linePosAttribLocation, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        CHECK_GL_ERRORS();
+         orbit -> addBuffers(linePosAttribLocation);
+         orbit -> draw();
 
-         glDrawArrays(GL_LINE_LOOP, 0, numberOfSides);
-         CHECK_GL_ERRORS();
-//        model = translate(model, vec3(1.0f, -1.0f, 0.0f));
+         // 2 Venus 30
+         model = scale(mat4(1.0), vec3(30.0f, 30.0f, 30.0f));
+         modelViewProjMatrix =ViewProjMatrix * model;
+         glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
 
-//        modelViewProj = proj * model;
-//        glUniformMatrix4fv(modelViewProjMatrixLocation, 1, false, value_ptr(modelViewProj));
+         orbit -> draw();
 
+         // 3 Earth 50
+
+         model = scale(mat4(1.0), vec3(50.0f, 50.0f, 50.0f));
+         modelViewProjMatrix =ViewProjMatrix * model;
+         glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+         orbit -> draw();
+
+         // 3.1 Moon 50
+         model = translate(mat4(1.0), vec3(50.0*sinf(currentTime/100), 0, 50.0*cosf(currentTime/100)));
+         model = scale(model, vec3(3.0f, 3.0f, 3.0f));
+
+         modelViewProjMatrix =ViewProjMatrix * model;
+         glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+         orbit -> draw();
+
+         // 4 Mars 70
+
+         model = scale(mat4(1.0), vec3(70.0f, 70.0f, 70.0f));
+         modelViewProjMatrix =ViewProjMatrix * model;
+         glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+         orbit -> draw();
+
+         // 5 Jupiter 100
+
+         model = scale(mat4(1.0), vec3(100.0f, 100.0f, 100.0f));
+         modelViewProjMatrix =ViewProjMatrix * model;
+         glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+         orbit -> draw();
+
+         // 6 Saturn 130
+
+         model = scale(mat4(1.0), vec3(130.0f, 130.0f, 130.0f));
+         modelViewProjMatrix =ViewProjMatrix * model;
+         glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+         orbit -> draw();
+
+         // 6.1 Saturn rings
+         model = translate(mat4(1.0), vec3(130.0f*sinf(currentTime/600+4.9), 0, 130.0f*cosf(currentTime/600+4.9)));
+         model = scale(model, vec3(6.0f, 6.0f, 6.0f));
+         model = rotate(model, 0.5f, vec3(0.0, 0.0, 1.0));
+
+         modelViewProjMatrix =ViewProjMatrix * model;
+         glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+         orbit -> draw();
+
+         model = translate(mat4(1.0), vec3(130.0f*sinf(currentTime/600+4.9), 0, 130.0f*cosf(currentTime/600+4.9)));
+         model = scale(model, vec3(9.0f, 9.0f, 9.0f));
+         model = rotate(model, 0.5f, vec3(0.0, 0.0, 1.0));
+
+         modelViewProjMatrix =ViewProjMatrix * model;
+         glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+         orbit -> draw();
+
+         // 7 Uranus 150
+
+         model = scale(mat4(1.0), vec3(150.0f, 150.0f, 150.0f));
+         modelViewProjMatrix =ViewProjMatrix * model;
+         glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+         orbit -> draw();
+
+         // 8 Uranus 180
+
+         model = scale(mat4(1.0), vec3(180.0f, 180.0f, 180.0f));
+         modelViewProjMatrix =ViewProjMatrix * model;
+         glUniformMatrix4fv(lineModelViewProjMatrixLocation, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+        orbit -> draw();
 
         // VBO off
         glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -527,11 +759,8 @@ int main(int argc, char *argv[]) {
 
     glDeleteProgram(shaderProgram);
     glDeleteProgram(shaderLine);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &uvbuffer);
-    glDeleteBuffers(1, &normalbuffer);
-    glDeleteBuffers(1, &elementbuffer);
-    glDeleteBuffers(1, &VBOLines);
+    orbit -> deleteBuffers();
+    planet -> deleteBuffers();
 
     glfwDestroyWindow(window);
 

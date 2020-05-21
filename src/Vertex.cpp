@@ -1,6 +1,5 @@
-#include <GLFW/glfw3.h>
-#include "Vertex.h"
 
+#include "Vertex.h"
 //Camera class
 //Camera class
 //Camera class
@@ -12,17 +11,103 @@
 #define MATH_PI 3.14159265
 const static float StepScale = 0.1f;
 
-Texture::Texture(char * path){
-    textureId = textureCount;
-    textureNumber = textureCount;
-    textureCount += 1;
-    loadImage(path, &textureId);
+void bindArrayBuffer(GLint attribLocation, GLint buffer, uint size){
+    glEnableVertexAttribArray(attribLocation);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+     glVertexAttribPointer(attribLocation, size, GL_FLOAT, GL_FALSE, 0, (void*)0);
 }
 
-void Texture::loadImage(char* path, GLuint* textureId){
+void bindElementBuffer(GLint buffer){
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer);
+}
+
+
+Circle::Circle(vec3 center, float radius, int numberOfSides){
+    float fraction = 2 * MATH_PI/numberOfSides;
+
+    for (int i = 0; i <= numberOfSides; i++){
+        vertices.push_back(vec3(
+                               center.x + (radius * cos( i * fraction)),
+                               center.y,
+                               center.z + (radius * sin( i * fraction))));
+    }
+
+    genBuffers();
+}
+
+void Circle::genBuffers(){
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+}
+
+void Circle::addBuffers(GLint posAttribLocation){
+    bindArrayBuffer(posAttribLocation, VBO, 3);
+}
+
+void Circle::deleteBuffers(){
+    glDeleteBuffers(1, &VBO);
+}
+
+void Circle::draw(){
+    glDrawArrays(GL_LINE_LOOP, 0, vertices.size());
+}
+
+
+
+Mesh::Mesh(const char * path){
+    loadAssImp(path, indices, vertices, uvs, normals);
+    genBuffers();
+}
+
+void Mesh::genBuffers(){
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+
+    glGenBuffers(1, &UVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, UVBO);
+    glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+
+    glGenBuffers(1, &IBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned short), &indices[0] , GL_STATIC_DRAW);
+
+    glGenBuffers(1, &NBO);
+    glBindBuffer(GL_ARRAY_BUFFER, NBO);
+    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
+    CHECK_GL_ERRORS();
+}
+
+void Mesh::addBuffers(GLint posAttribLocation, GLint normalAttribLocation, GLint textureAttribLocation){
+    bindArrayBuffer(posAttribLocation, VBO, 3);
+    if(normalAttribLocation >= 0)
+    bindArrayBuffer(normalAttribLocation, NBO, 3);
+    bindArrayBuffer(textureAttribLocation, UVBO, 2);
+    bindElementBuffer(IBO);
+}
+
+void Mesh::deleteBuffers(){
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &UVBO);
+    glDeleteBuffers(1, &IBO);
+    glDeleteBuffers(1, &NBO);
+}
+
+void Mesh::draw(){
+    glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+}
+
+
+Texture::Texture(const char * path, GLuint _texture){
+    loadImage(path, &textureId);
+    textureNumber = _texture;
+}
+
+void Texture::loadImage(const char* path, GLuint * textureId){
     ImageData info = loadPngImage(path);
     if(info.loaded){
-        glGenTextures(1, *&textureId);
+        glGenTextures(1, textureId);
         glBindTexture(GL_TEXTURE_2D, *textureId);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,              // формат внутри OpenGL
                      info.width, info.height, 0,            // ширинна, высота, границы
@@ -33,7 +118,18 @@ void Texture::loadImage(char* path, GLuint* textureId){
     }
 }
 
-void Texture::genTexture(){
+void Texture::UniformTexure(GLint textureLocation, GLuint tNumber){
+    glUniform1i(textureLocation, tNumber);
+}
+
+void Texture::genTexture0(){
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, textureId);
+}
+
+void Texture::genTexture1(){
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, textureId);
 
 }
 
@@ -104,7 +200,6 @@ Vertex::Vertex(vec3 inPos, vec3 inColor, vec2 inTexture):
     color(inColor),
     texture(inTexture){
 }
-
 
 // Pipeline Class
 // Pipeline Class
@@ -178,5 +273,3 @@ Vertex::Vertex(vec3 inPos, vec3 inColor, vec2 inTexture):
 //    m_transformation = TranslationTrans * RotateTrans * ScaleTrans;
 //    return &m_transformation;
 //}
-
-
