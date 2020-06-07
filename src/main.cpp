@@ -293,6 +293,7 @@ int main(int argc, char *argv[]) {
 
     // отключаем отображение задней части полигонов
     glEnable(GL_CULL_FACE);
+
     // отбрасываться будут задние грани
     glCullFace(GL_BACK);
     // Определяем, в каком направлении должный обходиться вершины, для передней части (против часовой стрелки?)
@@ -329,6 +330,9 @@ int main(int argc, char *argv[]) {
     shared_ptr<Texture> uranusTexture = make_shared<Texture>("res/uranus.png", 0);
     // Neptune
     shared_ptr<Texture> neptuneTexture = make_shared<Texture>("res/neptune.png", 0);
+    //skybox
+
+    shared_ptr<Texture> sky = make_shared<Texture>("res/milky_way.png", 0);
 
     while (!glfwWindowShouldClose(window)){
         // приращение времени
@@ -406,7 +410,7 @@ int main(int argc, char *argv[]) {
         float FoV = initialFoV;// - 5 * glfwGetMouseWheel(); // Now GLFW 3 requires setting up a callback for this. It's a bit too complicated for this beginner's tutorial, so it's disabled instead.
 
         // Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-        ProjectionMatrix = glm::perspective(glm::radians(FoV), 4.0f / 3.0f, 0.1f, 500.0f);
+        ProjectionMatrix = glm::perspective(glm::radians(FoV), 4.0f / 3.0f, 0.1f, 1000.0f);
         // Camera matrix
         ViewMatrix       = glm::lookAt(
                                     position,           // Camera is here
@@ -463,7 +467,7 @@ int main(int argc, char *argv[]) {
         // V matrix
         glUniformMatrix4fv(VLocation, 1, false, glm::value_ptr(ViewMatrix));
 
-        // M matrix
+        // M matrix//
         glUniformMatrix4fv(MLocation, 1, false, glm::value_ptr(model));
 //        glUniformMatrix4fv(modelViewProjMatrixLocation, 1, false, (const GLfloat*)p.GetTrans());
         // 1st texture
@@ -604,10 +608,10 @@ int main(int argc, char *argv[]) {
         planet -> draw();
 
         // 7 Uranus 150
-        //size
-        model = scale(model, vec3(3.0f, 3.0f, 3.0f));
         // trajectory
         model = translate(mat4(1.0), vec3(150.0f*sinf(currentTime/640+3.5), 0, 150.0f*cosf(currentTime/640+3.5)));
+        //size
+        model = scale(model, vec3(3.0f, 3.0f, 3.0f));
         // наклон
         model = rotate(model,4.95f , vec3(0, 0, 1));
         model = rotate(model,(float)currentTime/17.0f , vec3(0, 1, 0));
@@ -652,10 +656,27 @@ int main(int argc, char *argv[]) {
 
         planet->draw();
         CHECK_GL_ERRORS();
+        // Включаем отображение задней части полигонов для рисования фона
+        glDisable(GL_CULL_FACE);
+        // смещаем фон в соответствии с положением камеры
+        model = translate(mat4(1.0), position);
+        model = scale(model, vec3(500, 500, 500));
+        model = rotate(model, (float)currentTime/700, vec3(0.0, 1.0, 0.0));
+        modelViewProjMatrix = ViewProjMatrix * model;
+
+        glUniformMatrix4fv(modelViewProjMatrixLocationNoL, 1, false, glm::value_ptr(modelViewProjMatrix));
+
+        Texture::UniformTexure(modelTextureLocationNoL, 0);
+        sky->genTexture0();
+
+        planet->addBuffers(posAttribLocationNoL, normalAttribLocationNoL, textureAttribLocationNoL);
+
+        planet->draw();
         //shader for Orbits
         glUseProgram (shaderLine);
         CHECK_GL_ERRORS();
 
+        glEnable(GL_CULL_FACE);
         // 1 Mercury 20
         model = scale(mat4(1.0), vec3(20.0f, 20.0f, 20.0f));
         modelViewProjMatrix =ViewProjMatrix * model;;
